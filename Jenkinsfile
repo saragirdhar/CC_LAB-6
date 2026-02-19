@@ -3,6 +3,12 @@ pipeline {
 
     stages {
 
+        stage('Create Network') {
+            steps {
+                sh 'docker network create lab-net || true'
+            }
+        }
+
         stage('Build Backend Image') {
             steps {
                 sh 'docker rmi -f backend-app || true'
@@ -13,20 +19,19 @@ pipeline {
         stage('Deploy Backend Containers') {
             steps {
                 sh 'docker rm -f backend1 backend2 || true'
-                sh 'docker run -d --name backend1 backend-app'
-                sh 'docker run -d --name backend2 backend-app'
-                sh 'sleep 3'
+                sh 'docker run -d --name backend1 --network lab-net backend-app'
+                sh 'docker run -d --name backend2 --network lab-net backend-app'
             }
         }
 
         stage('Deploy NGINX Load Balancer') {
-    steps {
-        sh 'docker rm -f nginx-lb || true'
-        sh 'docker run -d --name nginx-lb -p 80:80 nginx'
-        sh 'sleep 5'
-        sh 'docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf'
-        sh 'docker exec nginx-lb nginx -s reload'
-    }
-}
+            steps {
+                sh 'docker rm -f nginx-lb || true'
+                sh 'docker run -d --name nginx-lb --network lab-net -p 80:80 nginx'
+                sh 'sleep 3'
+                sh 'docker cp nginx/default.conf nginx-lb:/etc/nginx/conf.d/default.conf'
+                sh 'docker exec nginx-lb nginx -s reload'
+            }
+        }
     }
 }
